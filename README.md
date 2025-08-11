@@ -1,6 +1,6 @@
 # Alarm Watchtower
 
-Web-based Alarm Tracking System to simulate, monitor, and analyze 10 alarms. Runs offline with local storage or online with Supabase for realtime DB + history.
+Web-based Alarm Tracking System for beltways to simulate, monitor, and analyze alarms. Runs offline with local storage or online with Supabase for realtime DB + history.
 
 ## Development
 
@@ -63,56 +63,10 @@ create table if not exists public.alarm_activations (
   deactivated_at timestamptz
 );
 
--- Trigger to maintain activation windows
-create or replace function public.handle_alarm_toggle()
-returns trigger as $$
-declare
-  prev_status smallint;
-  next_status smallint;
-begin
-  prev_status := coalesce(old.status, 0);
-  next_status := new.status;
-  if prev_status = 0 and next_status = 1 then
-    insert into public.alarm_activations (alarm_id, activated_at)
-    values (new.id, new.last_status_change_time);
-  end if;
-  if prev_status = 1 and next_status = 0 then
-    update public.alarm_activations
-    set deactivated_at = new.last_status_change_time
-    where alarm_id = new.id and deactivated_at is null
-    order by activated_at desc
-    limit 1;
-  end if;
-  return new;
-end;
-$$ language plpgsql security definer;
-
-drop trigger if exists trg_alarm_toggle on public.alarms;
-create trigger trg_alarm_toggle
-after update of status on public.alarms
-for each row execute function public.handle_alarm_toggle();
-
--- Seed 10 alarms
-insert into public.alarms (id, description, status, last_status_change_time)
-select * from (values
-  ('ALM-001','Alarm 1 — Monitoring point',0, now()),
-  ('ALM-002','Alarm 2 — Monitoring point',0, now()),
-  ('ALM-003','Alarm 3 — Monitoring point',0, now()),
-  ('ALM-004','Alarm 4 — Monitoring point',0, now()),
-  ('ALM-005','Alarm 5 — Monitoring point',0, now()),
-  ('ALM-006','Alarm 6 — Monitoring point',0, now()),
-  ('ALM-007','Alarm 7 — Monitoring point',0, now()),
-  ('ALM-008','Alarm 8 — Monitoring point',0, now()),
-  ('ALM-009','Alarm 9 — Monitoring point',0, now()),
-  ('ALM-010','Alarm 10 — Monitoring point',0, now())
-) as t(id, description, status, last_status_change_time)
-on conflict (id) do nothing;
-```
-
-Enable Realtime for tables `alarms` and `alarm_activations` in Database → Replication.
 
 ## Design decisions
 
-- Local-first with optional Supabase to keep the app usable offline.
-- DB trigger guarantees activation history integrity even if multiple clients toggle simultaneously.
-- Client computes durations for chosen ranges; can be moved to SQL later if needed.
+- Required two tabs with Overview and analysis
+- Overview: Contains with all alarms and data and also option to activate to deactivate alarm 
+- Analysis: proper logs for each alarm and also total number of mintes those alarams are in active state
+- More Features: Add alarm(can add new type of alarm), Notify: to notify mnultiple people in different sectors when alarm is triggered with separed comma emails.(Try it out)

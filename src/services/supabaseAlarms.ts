@@ -96,4 +96,14 @@ export async function fetchAnalyticsFromDb(range: TimeRange): Promise<Array<{ id
   }));
 }
 
+export async function createAlarmInDb(id: string, description: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error("Supabase is not configured");
+  const ts = new Date().toISOString();
+  const { error } = await supabase
+    .from("alarms")
+    .insert({ id, description, status: 0, last_status_change_time: ts });
+  if (error) throw error;
+}
+
 

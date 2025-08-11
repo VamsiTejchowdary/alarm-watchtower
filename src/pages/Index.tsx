@@ -6,7 +6,7 @@ import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { fetchAllAlarms, subscribeRealtime, toggleAlarmInDb } from "@/services/supabaseAlarms";
+import { fetchAllAlarms, subscribeRealtime, toggleAlarmInDb, createAlarmInDb } from "@/services/supabaseAlarms";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -91,7 +91,7 @@ const Index = () => {
           }),
         }).catch(() => {});
       }
-      toast({ title: `Toggled ${id}` });
+    toast({ title: `Toggled ${id}` });
     }
   };
 
@@ -147,6 +147,9 @@ const Index = () => {
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [selectedAlarmId, setSelectedAlarmId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState<string>("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [newId, setNewId] = useState("");
+  const [newDesc, setNewDesc] = useState("");
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -156,7 +159,7 @@ const Index = () => {
       )}>
         <div className="w-full px-4 sm:px-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
               <div className={cn(
                 "bg-white rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 overflow-hidden",
                 isScrolled ? "w-10 h-10" : "w-12 h-12"
@@ -196,6 +199,11 @@ const Index = () => {
               <Button className="btn-blue" onClick={() => setNotifyOpen(true)}>
                 <Bell className="h-4 w-4 mr-2" /> Notify
               </Button>
+              {supaEnabled && (
+                <Button onClick={() => setAddOpen((o) => !o)} className="bg-gray-700 hover:bg-gray-800 text-white">
+                  + Add Alarm
+                </Button>
+              )}
               {!supaEnabled && (
                 <Button 
                   className={cn(
@@ -205,8 +213,8 @@ const Index = () => {
                   )}
                   onClick={() => setSim((s) => !s)}
                 >
-                  {sim ? "Stop Simulation" : "Start Simulation"}
-                </Button>
+              {sim ? "Stop Simulation" : "Start Simulation"}
+            </Button>
               )}
             </div>
           </div>
@@ -214,6 +222,45 @@ const Index = () => {
       </header>
 
       <section className="container mx-auto px-6 py-8 space-y-8">
+        {addOpen && supaEnabled && (
+          <div className="professional-card p-4 border border-gray-200 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Add Alarm</h2>
+              <Button variant="secondary" onClick={() => setAddOpen(false)}>Close</Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="md:col-span-1">
+                <label className="text-sm text-gray-600">ID</label>
+                <input value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="ALM-011" className="w-full border border-gray-300 rounded-md p-2" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-gray-600">Description</label>
+                <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description" className="w-full border border-gray-300 rounded-md p-2" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <Button
+                className="btn-blue"
+                disabled={!newId || !newDesc}
+                onClick={async () => {
+                  try {
+                    await createAlarmInDb(newId, newDesc);
+                    const data = await fetchAllAlarms();
+                    setAlarms(data);
+                    setNewId("");
+                    setNewDesc("");
+                    setAddOpen(false);
+                    toast({ title: `Added ${newId}` });
+                  } catch (e: any) {
+                    toast({ title: "Failed", description: String(e?.message ?? e), variant: "destructive" });
+                  }
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
         {notifyOpen && (
           <div className="professional-card p-4 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-between mb-3">
@@ -300,7 +347,7 @@ const Index = () => {
                 >
                   📊 Historical Analysis
                 </TabsTrigger>
-              </TabsList>
+            </TabsList>
             </div>
           </div>
 

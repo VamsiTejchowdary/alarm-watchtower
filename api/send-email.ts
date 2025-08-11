@@ -1,12 +1,10 @@
-import { Resend } from 'resend';
+export const config = { runtime: 'edge' };
 
-const resend = new Resend(process.env.RESEND_API_KEY as string);
-
-export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST') return res.status(405).end();
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method !== 'POST') return new Response(null, { status: 405 });
   try {
-    const { alarmId, description, status, lastStatusChangeTime, to } = req.body || {};
-    if (!alarmId) return res.status(400).json({ error: 'alarmId required' });
+    const { alarmId, description, status, lastStatusChangeTime, to } = await req.json();
+    if (!alarmId) return Response.json({ error: 'alarmId required' }, { status: 400 });
 
     const recipients = Array.isArray(to) && to.length > 0
       ? to.map((s: string) => s.trim()).filter(Boolean)
@@ -26,17 +24,25 @@ export default async function handler(req: any, res: any) {
       </div>
     `;
 
-    await resend.emails.send({
-      from: process.env.ALERT_FROM || 'Beltways Alarm <alerts@vamsitejchowdary.com>',
-      to: recipients,
-      subject,
-      html,
+    const apiKey = process.env.RESEND_API_KEY as string;
+    const from = process.env.ALERT_FROM || 'Beltways Alarm <alerts@vamsitejchowdary.com>';
+
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: recipients, subject, html }),
     });
 
-    return res.status(200).json({ ok: true });
+    if (!resp.ok) {
+      const text = await resp.text();
+      return Response.json({ error: text }, { status: 500 });
+    }
+
+    return Response.json({ ok: true });
   } catch (e: any) {
-    return res.status(500).json({ error: String(e?.message ?? e) });
+    return Response.json({ error: String(e?.message ?? e) }, { status: 500 });
   }
 }
-
-

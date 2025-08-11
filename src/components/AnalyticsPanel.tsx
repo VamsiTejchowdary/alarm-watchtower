@@ -14,7 +14,7 @@ interface Props {
   alarms: Alarm[];
   range: TimeRange;
   onChangeRange?: (r: TimeRange) => void;
-  filterInactive?: boolean; // external control; also auto-enables when a preset is used inside
+  filterInactive?: boolean; 
 }
 
 export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = false }: Props) {
@@ -27,7 +27,7 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
 
   const isLiveRange = useMemo(() => {
     const endDiffMs = Date.now() - range.end.getTime();
-    const nearNow = endDiffMs >= -500 && endDiffMs <= 5 * 60 * 1000; // within last 5 minutes
+    const nearNow = endDiffMs >= -500 && endDiffMs <= 5 * 60 * 1000; 
     const anyActive = alarms.some(a => a.status === 1);
     return (preset === 'lastHour' || preset === 'last24h') ? true : (nearNow || anyActive);
   }, [range.end, alarms, preset]);
@@ -62,7 +62,7 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
     return () => { cancelled = true; };
   }, [alarms, range, supaEnabled, tick, isLiveRange]);
 
-  // Also refresh immediately on any DB change via realtime (Supabase mode)
+
   useEffect(() => {
     if (!supaEnabled) return;
     let cancelled = false;

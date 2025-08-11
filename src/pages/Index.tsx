@@ -17,9 +17,9 @@ const Index = () => {
   const [sim, setSim] = useState<boolean>(supaEnabled ? false : isSimulationOn());
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Local simulation (only when Supabase is not configured)
+  
   useEffect(() => {
-    if (supaEnabled) return; // Supabase mode; no local sim timer
+    if (supaEnabled) return; 
     const id = setInterval(() => {
       if (!sim) return;
       const count = Math.random() < 0.6 ? 1 : 2;
@@ -45,14 +45,12 @@ const Index = () => {
       if (!current) return;
       try {
         await toggleAlarmInDb(current);
-        // Immediate refetch to reflect change even if Realtime is not enabled
+       
         try {
           const data = await fetchAllAlarms();
           setAlarms(data);
-          // Find updated alarm for email payload if available
           const updated = data.find((a) => a.id === id);
           if (updated) {
-            // Fire-and-forget email; do not block UI
             fetch('/api/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -65,7 +63,7 @@ const Index = () => {
             }).catch(() => {});
           }
         } catch (e) {
-          // ignore, realtime may still update
+  
         }
         toast({ title: `Toggled ${id}` });
       } catch (e: any) {
@@ -95,11 +93,11 @@ const Index = () => {
     }
   };
 
-  // Default analytics range: entire day so far → but we will not filter until a preset/custom is selected
+ 
   const [range, setRange] = useState<TimeRange>(() => ({ start: new Date(Date.now() - 24 * 3600_000), end: new Date() }));
   const [activeTab, setActiveTab] = useState<"monitor" | "analytics">("monitor");
 
-  // Scroll detection for compact header
+  
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
@@ -115,7 +113,7 @@ const Index = () => {
     if (!supaEnabled) setSimulation(sim);
   }, [sim, supaEnabled]);
 
-  // Supabase: initial fetch + realtime
+  
   useEffect(() => {
     if (!supaEnabled) return;
     let unsub: (() => void) | null = null;

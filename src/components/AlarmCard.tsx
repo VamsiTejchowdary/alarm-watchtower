@@ -28,40 +28,64 @@ export function AlarmCard({ alarm, onToggle }: Props) {
 
   return (
     <Card className={cn(
-      "relative overflow-hidden border",
-      alarm.status === 1 ? "ring-1 ring-primary/30" : ""
+      "relative overflow-hidden transition-all duration-300 border-2",
+      alarm.status === 1 ? "alarm-active" : "alarm-normal",
+      "professional-card"
     )}>
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: alarm.status === 1 ? "var(--gradient-surface)" : undefined
-      }} />
-
-      <CardHeader>
+      <CardHeader className="pb-4">
         <CardTitle className="flex items-center justify-between">
-          <span className="font-semibold">{alarm.id}</span>
-          <Badge variant={alarm.status === 1 ? "default" : "secondary"} className={alarm.status === 1 ? "bg-primary text-primary-foreground" : ""}>
-            {alarm.status === 1 ? "Active" : "Inactive"}
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                alarm.status === 1 ? "bg-red-500 animate-pulse" : "bg-green-500"
+              )} />
+            </div>
+            <span className="font-bold text-lg text-gray-900">{alarm.id}</span>
+          </div>
+          <Badge 
+            className={cn(
+              "px-3 py-1 text-xs font-semibold border-0 rounded-full",
+              alarm.status === 1 ? "status-badge-active" : "status-badge-inactive"
+            )}
+          >
+            {alarm.status === 1 ? "🚨 ACTIVE" : "✅ NORMAL"}
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{alarm.description}</p>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <div className="text-muted-foreground">Last Change</div>
-            <div className="font-medium">{format(new Date(alarm.lastStatusChangeTime), "PP p")}</div>
+      <CardContent className="space-y-4">
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <p className="text-sm text-gray-700 leading-relaxed font-medium">{alarm.description}</p>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-4">
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div className="text-xs text-blue-600 uppercase tracking-wide mb-2 font-semibold">Last Status Change</div>
+            <div className="font-mono text-sm text-gray-900">{format(new Date(alarm.lastStatusChangeTime), "MMM dd, yyyy 'at' HH:mm:ss")}</div>
           </div>
-          <div>
-            <div className="text-muted-foreground">Live Active</div>
-            <div className="font-medium flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {alarm.status === 1 ? new Date(activeSinceMs).toISOString().substring(11, 19) : "00:00:00"}
+          
+          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+            <div className="text-xs text-purple-600 uppercase tracking-wide mb-2 font-semibold">Active Duration</div>
+            <div className="font-mono text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-500" />
+              <span className={alarm.status === 1 ? "text-red-600" : "text-green-600"}>
+                {alarm.status === 1 ? new Date(activeSinceMs).toISOString().substring(11, 19) : "00:00:00"}
+              </span>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => onToggle(alarm.id)} className="hover-scale" variant="default">
+        
+        <div className="pt-2">
+          <Button 
+            onClick={() => onToggle(alarm.id)} 
+            className={cn(
+              "w-full font-semibold transition-all duration-300 shadow-lg",
+              alarm.status === 1 ? "btn-red" : "btn-green"
+            )}
+            size="lg"
+          >
             <Power className="h-4 w-4 mr-2" />
-            Toggle
+            {alarm.status === 1 ? "Deactivate Alarm" : "Activate Alarm"}
           </Button>
         </div>
       </CardContent>

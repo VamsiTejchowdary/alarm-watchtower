@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { fetchAnalyticsFromDb, subscribeRealtime } from "@/services/supabaseAlarms";
 import { RangePicker } from "@/components/RangePicker";
+import { cn } from "@/lib/utils";
 
 interface Props {
   alarms: Alarm[];
@@ -94,64 +95,112 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
   const alarmsCount = useMemo(() => displayedRows.length, [displayedRows]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Historical Analysis</CardTitle>
-          {csvUrl && <a href={csvUrl} download={`alarm-analytics.csv`}>
-            <Button variant="secondary">Export CSV</Button>
-          </a>}
-        </div>
-        <div className="mt-4 flex flex-col gap-4">
-          <div className="flex items-end gap-4 flex-wrap">
-            <div>
-              <div className="text-sm text-muted-foreground">Time Range</div>
-              <RangePicker range={range} onChange={(r) => onChangeRange?.(r)} onPresetChange={(p) => setPreset(p)} activePreset={preset} />
+    <div className="space-y-8">
+      <Card className="professional-card shadow-lg">
+        <CardHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">📊</span>
+              </div>
+              <CardTitle className="text-2xl font-bold text-gray-900">Historical Analysis</CardTitle>
+            </div>
+            {csvUrl && <a href={csvUrl} download={`alarm-analytics.csv`}>
+              <Button className="btn-green shadow-lg">
+                📥 Export CSV
+              </Button>
+            </a>}
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-6 space-y-6">
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="text-sm text-gray-600 uppercase tracking-wide mb-3 font-semibold">Time Range Selection</div>
+            <RangePicker range={range} onChange={(r) => onChangeRange?.(r)} onPresetChange={(p) => setPreset(p)} activePreset={preset} />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-lg">🔢</span>
+                </div>
+                <div className="text-sm text-blue-700 uppercase tracking-wide font-semibold">Alarms Shown</div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">{alarmsCount}</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-lg">⚡</span>
+                </div>
+                <div className="text-sm text-purple-700 uppercase tracking-wide font-semibold">Total Activations</div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">{totalActivations}</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6 border border-red-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-lg">🚨</span>
+                </div>
+                <div className="text-sm text-red-700 uppercase tracking-wide font-semibold">Currently Active</div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">{activeAlarms}</div>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="border rounded-md p-4">
-              <div className="text-sm text-muted-foreground">Number of Alarms</div>
-              <div className="text-2xl font-semibold">{alarmsCount}</div>
-            </div>
-            <div className="border rounded-md p-4">
-              <div className="text-sm text-muted-foreground">Total Activations</div>
-              <div className="text-2xl font-semibold">{totalActivations}</div>
-            </div>
-            <div className="border rounded-md p-4">
-              <div className="text-sm text-muted-foreground">Active Alarms</div>
-              <div className="text-2xl font-semibold">{activeAlarms}</div>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Alarm ID</TableHead>
-                <TableHead>Total Active Duration</TableHead>
-                <TableHead>Number of Activations</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayedRows.map(r => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.id}</TableCell>
-                  <TableCell>{r.total}</TableCell>
-                  <TableCell>{r.activations}</TableCell>
+        </CardContent>
+      </Card>
+
+      <Card className="professional-card shadow-lg">
+        <CardHeader className="border-b border-gray-200">
+          <CardTitle className="text-xl font-bold text-gray-900">Detailed Analytics</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-200 bg-gray-50">
+                  <TableHead className="text-gray-700 font-semibold py-4 px-6">Alarm ID</TableHead>
+                  <TableHead className="text-gray-700 font-semibold py-4 px-6">Total Active Duration</TableHead>
+                  <TableHead className="text-gray-700 font-semibold py-4 px-6">Number of Activations</TableHead>
                 </TableRow>
-              ))}
-              <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
-                <TableCell className="font-semibold">{formatDuration(totalAll)}</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {displayedRows.map(r => {
+                  const alarm = alarms.find(a => a.id === r.id);
+                  const isActive = alarm?.status === 1;
+                  return (
+                    <TableRow 
+                      key={r.id} 
+                      className={cn(
+                        "border-gray-200 hover:bg-gray-50 transition-colors",
+                        isActive && "bg-red-50 border-red-200 hover:bg-red-100"
+                      )}
+                    >
+                      <TableCell className={cn(
+                        "font-bold py-4 px-6",
+                        isActive ? "text-red-700" : "text-gray-900"
+                      )}>
+                        {isActive && <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>}
+                        {r.id}
+                      </TableCell>
+                      <TableCell className="font-mono text-blue-600 py-4 px-6 font-semibold">{r.total}</TableCell>
+                      <TableCell className="text-purple-600 py-4 px-6 font-semibold">{r.activations}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                <TableRow className="border-gray-300 bg-gray-100">
+                  <TableCell className="font-bold text-gray-900 py-4 px-6 text-lg">TOTAL</TableCell>
+                  <TableCell className="font-bold text-green-600 py-4 px-6 text-lg font-mono">{formatDuration(totalAll)}</TableCell>
+                  <TableCell className="py-4 px-6"></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

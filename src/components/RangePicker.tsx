@@ -32,29 +32,69 @@ export function RangePicker({ range, onChange, onPresetChange, activePreset }: P
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <Button variant={activePreset === 'lastHour' ? 'default' : 'secondary'} onClick={() => setPreset('lastHour')}>Last Hour</Button>
-      <Button variant={activePreset === 'last24h' ? 'default' : 'secondary'} onClick={() => setPreset('last24h')}>Last 24 Hours</Button>
+    <div className="flex items-center gap-3 flex-wrap">
+      <Button 
+        className={cn(
+          "font-semibold transition-all duration-300 shadow-lg",
+          activePreset === 'lastHour' 
+            ? 'btn-blue' 
+            : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+        )}
+        onClick={() => setPreset('lastHour')}
+      >
+        ⏰ Last Hour
+      </Button>
+      
+      <Button 
+        className={cn(
+          "font-semibold transition-all duration-300 shadow-lg",
+          activePreset === 'last24h' 
+            ? 'btn-blue' 
+            : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+        )}
+        onClick={() => setPreset('last24h')}
+      >
+        📅 Last 24 Hours
+      </Button>
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant={activePreset === 'custom' ? 'default' : 'outline'} className="flex items-center gap-2">
+          <Button 
+            className={cn(
+              "font-semibold transition-all duration-300 shadow-lg flex items-center gap-2",
+              activePreset === 'custom' 
+                ? 'bg-purple-600 hover:bg-purple-700 text-white border-0' 
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+            )}
+          >
             <CalendarIcon className="h-4 w-4" />
-            Custom Range
+            📊 Custom Range
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <div className="p-3 pointer-events-auto">
+        <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-xl rounded-lg" align="start">
+          <div className="p-4">
             <Calendar
               mode="range"
               selected={{ from: temp.from, to: temp.to }}
               onSelect={(v) => setTemp(v ?? {})}
               initialFocus
-              className={cn("p-3 pointer-events-auto")}
+              className="rounded-lg"
             />
-            <div className="flex justify-end gap-2 p-2 pt-0">
-              <Button size="sm" variant="secondary" onClick={() => setTemp({ from: range.start, to: range.end })}>Reset</Button>
-              <Button size="sm" onClick={apply}>Apply</Button>
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 mt-4">
+              <Button 
+                size="sm" 
+                className="bg-gray-500 hover:bg-gray-600 text-white border-0" 
+                onClick={() => setTemp({ from: range.start, to: range.end })}
+              >
+                Reset
+              </Button>
+              <Button 
+                size="sm" 
+                className="bg-purple-600 hover:bg-purple-700 text-white border-0" 
+                onClick={apply}
+              >
+                Apply
+              </Button>
             </div>
           </div>
         </PopoverContent>

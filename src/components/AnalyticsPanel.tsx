@@ -7,6 +7,8 @@ import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { fetchAnalyticsFromDb, subscribeRealtime } from "@/services/supabaseAlarms";
 import { RangePicker } from "@/components/RangePicker";
 import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
+import { format } from "date-fns";
 
 interface Props {
   alarms: Alarm[];
@@ -21,6 +23,7 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
   const [rows, setRows] = useState<Array<{ id: string; totalMs: number; total: string; activations: number }>>([]);
   const [tick, setTick] = useState(0);
   const [preset, setPreset] = useState<"lastHour" | "last24h" | "custom" | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const isLiveRange = useMemo(() => {
     const endDiffMs = Date.now() - range.end.getTime();
@@ -94,6 +97,25 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
   const activeAlarms = useMemo(() => alarms.filter(a => a.status === 1).length, [alarms]);
   const alarmsCount = useMemo(() => displayedRows.length, [displayedRows]);
 
+  function getOverlappingPeriods(alarmId: string) {
+    const alarm = alarms.find(a => a.id === alarmId);
+    if (!alarm) return [] as { start: Date; end: Date | null; durationMs: number }[];
+    const effectiveRange = isLiveRange ? { start: range.start, end: new Date() } : range;
+    const list = alarm.activationHistory
+      .map(p => {
+        const start = new Date(p.activatedAt);
+        const end = p.deactivatedAt ? new Date(p.deactivatedAt) : null;
+        const overlapStart = start > effectiveRange.start ? start : effectiveRange.start;
+        const overlapEnd = (end ?? new Date()) < effectiveRange.end ? (end ?? new Date()) : effectiveRange.end;
+        const durationMs = Math.max(0, overlapEnd.getTime() - overlapStart.getTime());
+        return { start, end, durationMs, overlaps: overlapEnd > overlapStart };
+      })
+      .filter(x => x.overlaps)
+      .sort((a, b) => b.start.getTime() - a.start.getTime())
+      .map(({ start, end, durationMs }) => ({ start, end, durationMs }));
+    return list;
+  }
+
   return (
     <div className="space-y-8">
       <Card className="professional-card shadow-lg">
@@ -165,36 +187,84 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
                   <TableHead className="text-gray-700 font-semibold py-4 px-6">Alarm ID</TableHead>
                   <TableHead className="text-gray-700 font-semibold py-4 px-6">Total Active Duration</TableHead>
                   <TableHead className="text-gray-700 font-semibold py-4 px-6">Number of Activations</TableHead>
+                  <TableHead className="w-0"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {displayedRows.map(r => {
                   const alarm = alarms.find(a => a.id === r.id);
                   const isActive = alarm?.status === 1;
+                  const hasLogs = (r.activations ?? 0) > 0 || (r.totalMs ?? 0) > 0;
+                  const expanded = expandedId === r.id;
+                  const periods = expanded ? getOverlappingPeriods(r.id) : [];
                   return (
-                    <TableRow 
-                      key={r.id} 
-                      className={cn(
-                        "border-gray-200 hover:bg-gray-50 transition-colors",
-                        isActive && "bg-red-50 border-red-200 hover:bg-red-100"
+                    <>
+                      <TableRow 
+                        key={r.id} 
+                        className={cn(
+                          "border-gray-200 hover:bg-gray-50 transition-colors",
+                          isActive && "bg-red-50 border-red-200 hover:bg-red-100"
+                        )}
+                      >
+                        <TableCell className={cn(
+                          "font-bold py-4 px-6",
+                          isActive ? "text-red-700" : "text-gray-900"
+                        )}>
+                          {isActive && <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>}
+                          {r.id}
+                        </TableCell>
+                        <TableCell className="font-mono text-blue-600 py-4 px-6 font-semibold">{r.total}</TableCell>
+                        <TableCell className="text-purple-600 py-4 px-6 font-semibold">{r.activations}</TableCell>
+                        <TableCell className="py-0 pr-4 text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn("h-8 w-8 p-0", !hasLogs && "opacity-30 pointer-events-none")}
+                            onClick={() => setExpandedId(expanded ? null : r.id)}
+                            aria-label="Toggle logs"
+                          >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {expanded && (
+                        <TableRow key={r.id + "-details"} className="bg-gray-50/60 border-gray-200">
+                          <TableCell colSpan={4} className="py-4 px-6">
+                            {periods.length === 0 ? (
+                              <div className="text-sm text-gray-600">No logs in selected range.</div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="text-gray-600">
+                                      <th className="text-left font-semibold pb-2">Activated At</th>
+                                      <th className="text-left font-semibold pb-2">Deactivated At</th>
+                                      <th className="text-left font-semibold pb-2">Duration</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {periods.map((p, idx) => (
+                                      <tr key={idx} className="border-t border-gray-200">
+                                        <td className="py-2 pr-4 text-gray-900 font-mono">{format(p.start, "PP p")}</td>
+                                        <td className="py-2 pr-4 text-gray-700 font-mono">{p.end ? format(p.end, "PP p") : "Active"}</td>
+                                        <td className="py-2 pr-4 font-mono text-blue-700">{formatDuration(p.durationMs)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
                       )}
-                    >
-                      <TableCell className={cn(
-                        "font-bold py-4 px-6",
-                        isActive ? "text-red-700" : "text-gray-900"
-                      )}>
-                        {isActive && <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>}
-                        {r.id}
-                      </TableCell>
-                      <TableCell className="font-mono text-blue-600 py-4 px-6 font-semibold">{r.total}</TableCell>
-                      <TableCell className="text-purple-600 py-4 px-6 font-semibold">{r.activations}</TableCell>
-                    </TableRow>
+                    </>
                   );
                 })}
                 <TableRow className="border-gray-300 bg-gray-100">
                   <TableCell className="font-bold text-gray-900 py-4 px-6 text-lg">TOTAL</TableCell>
                   <TableCell className="font-bold text-green-600 py-4 px-6 text-lg font-mono">{formatDuration(totalAll)}</TableCell>
                   <TableCell className="py-4 px-6"></TableCell>
+                  <TableCell></TableCell>
                 </TableRow>
               </TableBody>
             </Table>

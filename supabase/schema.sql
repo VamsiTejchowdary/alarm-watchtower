@@ -1,52 +1,3 @@
-# Alarm Watchtower
-
-Web-based Alarm Tracking System to simulate, monitor, and analyze 10 alarms. Runs offline with local storage or online with Supabase for realtime DB + history.
-
-## Development
-
-1) Install deps
-
-```bash
-npm i
-```
-
-2) Run dev server
-
-```bash
-npm run dev
-```
-
-3) Build
-
-```bash
-npm run build && npm run preview
-```
-
-## Supabase Setup (Realtime DB)
-
-This app auto-detects Supabase envs and switches from local simulation to realtime DB.
-
-### 1) Project URL and anon key
-
-Create a Supabase project. From Project Settings → API, copy:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Create a `.env` file in repo root:
-
-```bash
-echo "VITE_SUPABASE_URL=YOUR_URL" >> .env
-echo "VITE_SUPABASE_ANON_KEY=YOUR_KEY" >> .env
-```
-
-Restart `npm run dev` after adding envs.
-
-### 2) Schema and trigger
-
-Run this in Supabase SQL editor to create tables and an automatic history logger:
-
-```sql
 -- Alarms table
 create table if not exists public.alarms (
   id text primary key,
@@ -77,11 +28,14 @@ begin
     values (new.id, new.last_status_change_time);
   end if;
   if prev_status = 1 and next_status = 0 then
-    update public.alarm_activations
+    update public.alarm_activations aa
     set deactivated_at = new.last_status_change_time
-    where alarm_id = new.id and deactivated_at is null
-    order by activated_at desc
-    limit 1;
+    where aa.id = (
+      select id from public.alarm_activations
+      where alarm_id = new.id and deactivated_at is null
+      order by activated_at desc
+      limit 1
+    );
   end if;
   return new;
 end;
@@ -107,12 +61,39 @@ select * from (values
   ('ALM-010','Alarm 10 — Monitoring point',0, now())
 ) as t(id, description, status, last_status_change_time)
 on conflict (id) do nothing;
-```
 
-Enable Realtime for tables `alarms` and `alarm_activations` in Database → Replication.
+-- Analytics function: totals per alarm within a time window
+create or replace function public.alarm_analytics(start_ts timestamptz, end_ts timestamptz)
+returns table (
+  id text,
+  total_ms bigint,
+  activations integer
+) as $$
+begin
+  return query
+  select a.id,
+         coalesce(
+           sum(
+             extract(epoch from (
+               least(coalesce(act.deactivated_at, end_ts), end_ts)
+               - greatest(act.activated_at, start_ts)
+             ))
+           ) filter (
+             where act.activated_at <= end_ts and coalesce(act.deactivated_at, end_ts) >= start_ts
+           ),
+           0
+         )::bigint,
+         coalesce(
+           count(*) filter (
+             where act.activated_at <= end_ts and coalesce(act.deactivated_at, end_ts) >= start_ts
+           ),
+           0
+         )::int
+  from public.alarms a
+  left join public.alarm_activations act
+    on act.alarm_id = a.id
+  group by a.id
+  order by a.id;
+end;
+$$ language plpgsql stable;
 
-## Design decisions
-
-- Local-first with optional Supabase to keep the app usable offline.
-- DB trigger guarantees activation history integrity even if multiple clients toggle simultaneously.
-- Client computes durations for chosen ranges; can be moved to SQL later if needed.

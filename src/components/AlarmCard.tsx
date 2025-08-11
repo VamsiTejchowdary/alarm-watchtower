@@ -85,7 +85,7 @@ export function AlarmCard({ alarm, onToggle }: Props) {
             size="lg"
           >
             <Power className="h-4 w-4 mr-2" />
-            {alarm.status === 1 ? "Deactivate Alarm" : "Activate Alarm"}
+            {alarm.status === 1 ? "Deactivate" : "Activate"}
           </Button>
         </div>
       </CardContent>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { fetchAllAlarms, subscribeRealtime, toggleAlarmInDb } from "@/services/supabaseAlarms";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
+import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Index = () => {
@@ -48,6 +49,21 @@ const Index = () => {
         try {
           const data = await fetchAllAlarms();
           setAlarms(data);
+          // Find updated alarm for email payload if available
+          const updated = data.find((a) => a.id === id);
+          if (updated) {
+            // Fire-and-forget email; do not block UI
+            fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                alarmId: updated.id,
+                description: updated.description,
+                status: updated.status,
+                lastStatusChangeTime: updated.lastStatusChangeTime,
+              }),
+            }).catch(() => {});
+          }
         } catch (e) {
           // ignore, realtime may still update
         }
@@ -56,7 +72,25 @@ const Index = () => {
         toast({ title: `Toggle failed`, description: String(e?.message ?? e), variant: "destructive" });
       }
     } else {
-      setAlarms((prev) => toggleAlarm(prev, id));
+      let emailPayload: { id: string; description: string; status: number; lastStatusChangeTime: string } | null = null;
+      setAlarms((prev) => {
+        const updated = toggleAlarm(prev, id);
+        const a = updated.find((x) => x.id === id);
+        if (a) emailPayload = { id: a.id, description: a.description, status: a.status, lastStatusChangeTime: a.lastStatusChangeTime };
+        return updated;
+      });
+      if (emailPayload) {
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alarmId: emailPayload.id,
+            description: emailPayload.description,
+            status: emailPayload.status,
+            lastStatusChangeTime: emailPayload.lastStatusChangeTime,
+          }),
+        }).catch(() => {});
+      }
       toast({ title: `Toggled ${id}` });
     }
   };
@@ -109,6 +143,10 @@ const Index = () => {
   }, [supaEnabled]);
 
   const activeCount = useMemo(() => alarms.filter(a => a.status === 1).length, [alarms]);
+  const activeAlarms = useMemo(() => alarms.filter(a => a.status === 1), [alarms]);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [selectedAlarmId, setSelectedAlarmId] = useState<string | null>(null);
+  const [recipients, setRecipients] = useState<string>("");
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -134,7 +172,7 @@ const Index = () => {
                 isScrolled ? "w-0 opacity-0" : "w-auto opacity-100"
               )}>
                 <h1 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
-                  Alarm Tracking Beltways
+                Beltways Alarm Tracking 
                 </h1>
                 <p className="text-sm text-gray-600 whitespace-nowrap">Real-time Monitoring & Analytics Dashboard</p>
               </div>
@@ -155,6 +193,9 @@ const Index = () => {
                   </span>
                 </div>
               </div>
+              <Button className="btn-blue" onClick={() => setNotifyOpen(true)}>
+                <Bell className="h-4 w-4 mr-2" /> Notify
+              </Button>
               {!supaEnabled && (
                 <Button 
                   className={cn(
@@ -173,6 +214,76 @@ const Index = () => {
       </header>
 
       <section className="container mx-auto px-6 py-8 space-y-8">
+        {notifyOpen && (
+          <div className="professional-card p-4 border border-gray-200 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Send Notification</h2>
+              <Button variant="secondary" onClick={() => setNotifyOpen(false)}>Close</Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="md:col-span-1">
+                <div className="text-sm text-gray-600 mb-2">Active Alarms</div>
+                <div className="max-h-56 overflow-auto border border-gray-200 rounded-md">
+                  {activeAlarms.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-500">No active alarms</div>
+                  ) : (
+                    activeAlarms.map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => setSelectedAlarmId(a.id)}
+                        className={cn("w-full text-left p-2 border-b border-gray-100 hover:bg-gray-50",
+                          selectedAlarmId === a.id && "bg-blue-50")}
+                      >
+                        <div className="font-semibold">{a.id}</div>
+                        <div className="text-xs text-gray-600 truncate">{a.description}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-sm text-gray-600 mb-2">Recipients (comma separated)</div>
+                <input
+                  value={recipients}
+                  onChange={(e) => setRecipients(e.target.value)}
+                  placeholder="email1@example.com, email2@example.com"
+                  className="w-full border border-gray-300 rounded-md p-2"
+                />
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    className="btn-blue"
+                    disabled={!selectedAlarmId}
+                    onClick={async () => {
+                      const alarm = alarms.find(a => a.id === selectedAlarmId!);
+                      if (!alarm) return;
+                      const to = recipients.split(',').map(s => s.trim()).filter(Boolean);
+                      const body: any = {
+                        alarmId: alarm.id,
+                        description: alarm.description,
+                        status: alarm.status,
+                        lastStatusChangeTime: alarm.lastStatusChangeTime,
+                      };
+                      if (to.length > 0) body.to = to;
+                      try {
+                        await fetch('/api/send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(body),
+                        });
+                        setNotifyOpen(false);
+                        setRecipients('');
+                        setSelectedAlarmId(null);
+                        toast({ title: `Email sent for ${alarm.id}` });
+                      } catch {}
+                    }}
+                  >
+                    Send Email
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <Tabs defaultValue="monitor" onValueChange={(v) => setActiveTab(v as any)}>
           <div className="flex items-center justify-center mb-8">
             <div className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">

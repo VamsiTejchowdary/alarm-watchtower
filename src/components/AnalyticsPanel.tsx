@@ -9,6 +9,7 @@ import { RangePicker } from "@/components/RangePicker";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface Props {
   alarms: Alarm[];
@@ -25,6 +26,9 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
   const [rows, setRows] = useState<Array<{ id: string; totalMs: number; total: string; activations: number }>>([]);
   const [tick, setTick] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [isCsvGenerating, setIsCsvGenerating] = useState(false);
+  const [hasInitialData, setHasInitialData] = useState(false);
 
   const isLiveRange = useMemo(() => {
     const endDiffMs = Date.now() - range.end.getTime();
@@ -32,35 +36,89 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
     return preset === 'lastHour' || preset === 'last24h' || nearNow;
   }, [range.end, preset]);
 
+  // Reset initial data flag when range changes significantly (not just live updates)
+  useEffect(() => {
+    if (!isLiveRange) {
+      setHasInitialData(false);
+    }
+  }, [range.start.getTime(), range.end.getTime(), isLiveRange]);
+
   useEffect(() => {
     if (!isLiveRange) return;
+    // Update every second for real-time analytics
     const i = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(i);
   }, [isLiveRange]);
 
+  // Separate effect for initial/range-based loading (with loading spinner)
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      const effectiveRange = isLiveRange ? { start: range.start, end: new Date() } : range;
-      if (supaEnabled) {
-        try {
+    async function loadInitial() {
+      setIsAnalyticsLoading(true);
+      const effectiveRange = { start: range.start, end: range.end };
+      
+      try {
+        if (supaEnabled) {
           const data = await fetchAnalyticsFromDb(effectiveRange);
-          if (!cancelled) setRows(data.map(r => ({ ...r, total: formatDuration(r.totalMs) })));
-        } catch {
-          if (!cancelled) setRows([]);
+          if (!cancelled) {
+            setRows(data.map(r => ({ ...r, total: formatDuration(r.totalMs) })));
+            setHasInitialData(true);
+          }
+        } else {
+          const computed = alarms.map((a) => {
+            const total = totalActiveMsForRange(a, effectiveRange);
+            const count = activationCountForRange(a, effectiveRange);
+            return { id: a.id, totalMs: total, total: formatDuration(total), activations: count };
+          });
+          if (!cancelled) {
+            setRows(computed);
+            setHasInitialData(true);
+          }
         }
-      } else {
-        const computed = alarms.map((a) => {
-          const total = totalActiveMsForRange(a, effectiveRange);
-          const count = activationCountForRange(a, effectiveRange);
-          return { id: a.id, totalMs: total, total: formatDuration(total), activations: count };
-        });
-        if (!cancelled) setRows(computed);
+      } catch (error) {
+        console.error('Failed to load analytics:', error);
+        if (!cancelled) setRows([]);
+      } finally {
+        if (!cancelled) setIsAnalyticsLoading(false);
       }
     }
-    load();
+    
+    loadInitial();
     return () => { cancelled = true; };
-  }, [alarms, range, supaEnabled, tick, isLiveRange]);
+  }, [alarms, range.start.getTime(), range.end.getTime(), supaEnabled]);
+
+  // Separate effect for live updates (without loading spinner)
+  useEffect(() => {
+    if (!isLiveRange || !hasInitialData) return;
+    
+    let cancelled = false;
+    async function updateLive() {
+      const effectiveRange = { start: range.start, end: new Date() };
+      
+      try {
+        if (supaEnabled) {
+          const data = await fetchAnalyticsFromDb(effectiveRange);
+          if (!cancelled) {
+            setRows(data.map(r => ({ ...r, total: formatDuration(r.totalMs) })));
+          }
+        } else {
+          const computed = alarms.map((a) => {
+            const total = totalActiveMsForRange(a, effectiveRange);
+            const count = activationCountForRange(a, effectiveRange);
+            return { id: a.id, totalMs: total, total: formatDuration(total), activations: count };
+          });
+          if (!cancelled) {
+            setRows(computed);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to update live analytics:', error);
+      }
+    }
+    
+    updateLive();
+    return () => { cancelled = true; };
+  }, [tick, isLiveRange, hasInitialData, alarms, range.start, supaEnabled]);
 
 
   useEffect(() => {
@@ -72,22 +130,32 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
       try {
         const data = await fetchAnalyticsFromDb(effectiveRange);
         if (!cancelled) setRows(data.map(r => ({ ...r, total: formatDuration(r.totalMs) })));
-      } catch {
-        /* noop */
+      } catch (error) {
+        console.error('Realtime analytics update failed:', error);
       }
     });
     return () => { cancelled = true; unsub(); };
   }, [supaEnabled, range, isLiveRange]);
 
   useEffect(() => {
-    if (csvUrl) URL.revokeObjectURL(csvUrl);
-    const header = ["Alarm ID", "Total Active (hh:mm:ss)", "Activations"].join(",");
-    const dataRows = filterInactive ? rows.filter(r => r.totalMs > 0 || r.activations > 0) : rows;
-    const lines = dataRows.map(r => [r.id, r.total, r.activations].join(","));
-    const blob = new Blob([header + "\n" + lines.join("\n")], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    setCsvUrl(url);
-    return () => URL.revokeObjectURL(url);
+    if (rows.length === 0) return;
+    
+    setIsCsvGenerating(true);
+    const timer = setTimeout(() => {
+      if (csvUrl) URL.revokeObjectURL(csvUrl);
+      const header = ["Alarm ID", "Total Active (hh:mm:ss)", "Activations"].join(",");
+      const dataRows = filterInactive ? rows.filter(r => r.totalMs > 0 || r.activations > 0) : rows;
+      const lines = dataRows.map(r => [r.id, r.total, r.activations].join(","));
+      const blob = new Blob([header + "\n" + lines.join("\n")], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      setCsvUrl(url);
+      setIsCsvGenerating(false);
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      if (csvUrl) URL.revokeObjectURL(csvUrl);
+    };
   }, [rows, filterInactive]);
 
   const applyFilter = filterInactive || preset !== null;
@@ -127,11 +195,24 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
               </div>
               <CardTitle className="text-2xl font-bold text-gray-900">Historical Analysis</CardTitle>
             </div>
-            {csvUrl && <a href={csvUrl} download={`alarm-analytics.csv`}>
-              <Button className="btn-green shadow-lg">
-                📥 Export CSV
+            {csvUrl ? (
+              <a href={csvUrl} download={`alarm-analytics.csv`}>
+                <Button className="btn-green shadow-lg">
+                  📥 Export CSV
+                </Button>
+              </a>
+            ) : (
+              <Button disabled className="btn-green shadow-lg opacity-50">
+                {isCsvGenerating ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  "📥 Export CSV"
+                )}
               </Button>
-            </a>}
+            )}
           </div>
         </CardHeader>
         
@@ -185,17 +266,25 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
           <CardTitle className="text-xl font-bold text-gray-900">Detailed Analytics</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-gray-200 bg-gray-50">
-                  <TableHead className="text-gray-700 font-semibold py-4 px-6">Alarm ID</TableHead>
-                  <TableHead className="text-gray-700 font-semibold py-4 px-6">Total Active Duration</TableHead>
-                  <TableHead className="text-gray-700 font-semibold py-4 px-6">Number of Activations</TableHead>
-                  <TableHead className="w-0"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          {isAnalyticsLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <LoadingSpinner size="lg" className="mx-auto mb-4" />
+                <p className="text-gray-600">Loading analytics...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-gray-200 bg-gray-50">
+                    <TableHead className="text-gray-700 font-semibold py-4 px-6">Alarm ID</TableHead>
+                    <TableHead className="text-gray-700 font-semibold py-4 px-6">Total Active Duration</TableHead>
+                    <TableHead className="text-gray-700 font-semibold py-4 px-6">Number of Activations</TableHead>
+                    <TableHead className="w-0"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {displayedRows.map(r => {
                   const alarm = alarms.find(a => a.id === r.id);
                   const isActive = alarm?.status === 1;
@@ -271,9 +360,10 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
                   <TableCell className="py-4 px-6"></TableCell>
                   <TableCell></TableCell>
                 </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

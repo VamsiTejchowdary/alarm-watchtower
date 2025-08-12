@@ -6,13 +6,16 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Clock, Power } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
   alarm: Alarm;
   onToggle: (id: string) => void;
+  isLoading?: boolean;
 }
 
-export function AlarmCard({ alarm, onToggle }: Props) {
+export function AlarmCard({ alarm, onToggle, isLoading = false }: Props) {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -78,14 +81,25 @@ export function AlarmCard({ alarm, onToggle }: Props) {
         <div className="pt-2">
           <Button 
             onClick={() => onToggle(alarm.id)} 
+            disabled={isLoading}
             className={cn(
               "w-full font-semibold transition-all duration-300 shadow-lg",
-              alarm.status === 1 ? "btn-red" : "btn-green"
+              alarm.status === 1 ? "btn-red" : "btn-green",
+              isLoading && "opacity-75 cursor-not-allowed"
             )}
             size="lg"
           >
-            <Power className="h-4 w-4 mr-2" />
-            {alarm.status === 1 ? "Deactivate" : "Activate"}
+            {isLoading ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Power className="h-4 w-4 mr-2" />
+                {alarm.status === 1 ? "Deactivate" : "Activate"}
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

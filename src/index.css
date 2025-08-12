@@ -109,4 +109,75 @@ All colors MUST be HSL.
 @layer utilities {
   .hover-scale { @apply transition-transform duration-200 hover:scale-105; }
   .story-link { @apply relative inline-block after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-primary after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left; }
+  
+  /* Loading animations */
+  .animate-enter {
+    animation: fadeInUp 0.4s ease-out;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Dialog improvements */
+  .dialog-content {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    margin: 1rem;
+  }
+
+  /* Dialog content styling */
+  [data-radix-dialog-content] {
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  /* Ensure dialogs are centered on all screen sizes */
+  @media (max-width: 640px) {
+    .dialog-content {
+      margin: 0.5rem;
+      width: calc(100vw - 1rem);
+      max-width: none;
+    }
+  }
+
+  /* Active alarm notification animations */
+  .slide-in-from-bottom-4 {
+    animation: slideInFromBottom 0.3s ease-out;
+  }
+  
+  @keyframes slideInFromBottom {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Reminder notification special effects */
+  .reminder-glow {
+    animation: reminderGlow 2s ease-in-out infinite;
+  }
+  
+  @keyframes reminderGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(251, 146, 60, 0.5);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(251, 146, 60, 0.8);
+    }
+  }
 }

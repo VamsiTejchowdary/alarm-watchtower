@@ -604,7 +604,7 @@ const Index = () => {
               <div className="flex items-center gap-2 text-blue-800 text-sm">
                 <span>💡</span>
                 <span className="font-medium">
-                  Email delivery tip: If you don't receive the notification in your inbox, please check your spam/junk folder.
+                 If you don't receive the notification in your inbox, please check your spam/junk folder.
                 </span>
               </div>
             </div>

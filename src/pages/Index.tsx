@@ -592,6 +592,16 @@ const Index = () => {
               </div>
             )}
 
+            {/* Email Delivery Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4">
+              <div className="flex items-center gap-2 text-blue-800 text-sm">
+                <span>💡</span>
+                <span className="font-medium">
+                  Email delivery tip: If you don't receive the notification in your inbox, please check your spam/junk folder.
+                </span>
+              </div>
+            </div>
+
             <DialogFooter className="gap-4 pt-6">
               <Button
                 variant="secondary"
@@ -639,7 +649,7 @@ const Index = () => {
                       title: `📧 Email sent for ${alarm.id}`,
                       description: `Notification sent to ${
                         recipientList.length
-                      } recipient${recipientList.length > 1 ? "s" : ""}.`,
+                      } recipient${recipientList.length > 1 ? "s" : ""}. Please check spam folder if not found in inbox.`,
                     });
                   } catch (e: any) {
                     toast({

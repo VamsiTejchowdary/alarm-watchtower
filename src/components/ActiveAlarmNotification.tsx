@@ -18,28 +18,41 @@ export function ActiveAlarmNotification({ alarms, onAlarmClick }: Props) {
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-w-sm">
-        {/* Collapsed Header - Always Visible */}
+      {/* Hazard symbol with count badge when collapsed */}
+      {!isExpanded && (
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-3 flex items-center justify-between transition-colors"
+          onClick={() => setIsExpanded(true)}
+          className="relative transition-all duration-200 hover:scale-110"
         >
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            <span className="font-bold text-sm">
-              {activeAlarms.length} Active
-            </span>
+          <AlertTriangle className="h-12 w-12 text-red-500 drop-shadow-lg" />
+          {/* Count badge closer to triangle */}
+          <div className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white shadow-lg">
+            {activeAlarms.length}
           </div>
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronUp className="h-4 w-4" />
-          )}
         </button>
+      )}
 
-        {/* Expanded Content */}
-        {isExpanded && (
-          <div className="animate-in slide-in-from-top-2 duration-200">
+      {/* Expanded popup */}
+      {isExpanded && (
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-w-sm animate-in slide-in-from-bottom-4 duration-200">
+          {/* Header */}
+          <div className="bg-red-500 text-white px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-bold text-sm">
+                {activeAlarms.length} Active Alarm{activeAlarms.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="hover:bg-red-600 rounded-full p-1 transition-colors"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Expanded Content */}
+          <div>
             <div className="max-h-80 overflow-y-auto">
               {activeAlarms.map((alarm, index) => (
                 <div
@@ -75,8 +88,8 @@ export function ActiveAlarmNotification({ alarms, onAlarmClick }: Props) {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

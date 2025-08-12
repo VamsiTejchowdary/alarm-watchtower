@@ -27,10 +27,9 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
 
   const isLiveRange = useMemo(() => {
     const endDiffMs = Date.now() - range.end.getTime();
-    const nearNow = endDiffMs >= -500 && endDiffMs <= 5 * 60 * 1000; 
-    const anyActive = alarms.some(a => a.status === 1);
-    return (preset === 'lastHour' || preset === 'last24h') ? true : (nearNow || anyActive);
-  }, [range.end, alarms, preset]);
+    const nearNow = endDiffMs >= -500 && endDiffMs <= 5 * 60 * 1000;
+    return preset === 'lastHour' || preset === 'last24h' || nearNow;
+  }, [range.end, preset]);
 
   useEffect(() => {
     if (!isLiveRange) return;

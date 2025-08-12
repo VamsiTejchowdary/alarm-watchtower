@@ -25,10 +25,29 @@ export function RangePicker({ range, onChange, onPresetChange, activePreset }: P
   const [open, setOpen] = React.useState(false);
   const [temp, setTemp] = React.useState<{ from?: Date; to?: Date }>({ from: range.start, to: range.end });
 
+  // Keep the temporary selection in sync each time the popover opens
+  React.useEffect(() => {
+    if (open) {
+      setTemp({ from: range.start, to: range.end });
+    }
+  }, [open, range.start, range.end]);
+
   const apply = () => {
-    if (temp.from && temp.to) onChange({ start: temp.from, end: endOfDay(temp.to) });
+    let from = temp.from;
+    let to = temp.to;
+    // Support single-day selection and reverse selections
+    if (from && !to) to = from;
+    if (!from && to) from = to;
+    if (from && to && from > to) {
+      const swap = from;
+      from = to;
+      to = swap;
+    }
+    if (from && to) {
+      onChange({ start: from, end: endOfDay(to) });
+      onPresetChange?.('custom');
+    }
     setOpen(false);
-    onPresetChange?.('custom');
   };
 
   return (
@@ -79,6 +98,8 @@ export function RangePicker({ range, onChange, onPresetChange, activePreset }: P
               onSelect={(v) => setTemp(v ?? {})}
               initialFocus
               className="rounded-lg"
+              // Prevent picking a future date range which can be confusing for analytics
+              disabled={{ after: new Date() }}
             />
             <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 mt-4">
               <Button 

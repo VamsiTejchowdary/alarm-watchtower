@@ -236,8 +236,10 @@ const Index = () => {
     <main className="min-h-screen bg-gray-50">
       <header
         className={cn(
-          "sticky top-0 z-20 header-modern transition-all duration-300",
-          isScrolled ? "py-3" : "py-6"
+          "sticky top-0 z-20 transition-all duration-300",
+          isScrolled 
+            ? "py-3 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm" 
+            : "py-6 bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-sm"
         )}
       >
         <div className="w-full px-4 sm:px-6">
@@ -245,7 +247,7 @@ const Index = () => {
             <div className="flex items-center gap-3">
               <div
                 className={cn(
-                  "bg-white rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 overflow-hidden",
+                  "bg-white/95 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 overflow-hidden border border-white/50",
                   isScrolled ? "w-10 h-10" : "w-12 h-12"
                 )}
               >
@@ -270,7 +272,12 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="bg-white rounded-lg px-4 py-3 border border-gray-200 shadow-sm">
+              <div className={cn(
+                "rounded-lg px-4 py-3 border transition-all duration-300",
+                isScrolled 
+                  ? "bg-white/90 border-gray-200/60 shadow-sm backdrop-blur-sm" 
+                  : "bg-white/95 border-gray-200/80 shadow-md backdrop-blur-sm"
+              )}>
                 <div className="flex items-center gap-2">
                   <div
                     className={cn(

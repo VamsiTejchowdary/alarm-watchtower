@@ -4,7 +4,10 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return new Response(null, { status: 405 });
   try {
     const { alarmId, description, status, lastStatusChangeTime, to } = await req.json();
-    if (!alarmId) return Response.json({ error: 'alarmId required' }, { status: 400 });
+    if (!alarmId) return new Response(JSON.stringify({ error: 'alarmId required' }), { 
+      status: 400, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
 
     const recipients = Array.isArray(to) && to.length > 0
       ? to.map((s: string) => s.trim()).filter(Boolean)
@@ -38,11 +41,19 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (!resp.ok) {
       const text = await resp.text();
-      return Response.json({ error: text }, { status: 500 });
+      return new Response(JSON.stringify({ error: text }), { 
+        status: 500, 
+        headers: { 'Content-Type': 'application/json' } 
+      });
     }
 
-    return Response.json({ ok: true });
+    return new Response(JSON.stringify({ ok: true }), { 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   } catch (e: any) {
-    return Response.json({ error: String(e?.message ?? e) }, { status: 500 });
+    return new Response(JSON.stringify({ error: String(e?.message ?? e) }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 }

@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { fetchAllAlarms, subscribeRealtime, toggleAlarmInDb, createAlarmInDb } from "@/services/supabaseAlarms";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Index = () => {
   const supaEnabled = isSupabaseConfigured();
@@ -144,7 +145,8 @@ const Index = () => {
   const activeAlarms = useMemo(() => alarms.filter(a => a.status === 1), [alarms]);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [selectedAlarmId, setSelectedAlarmId] = useState<string | null>(null);
-  const [recipients, setRecipients] = useState<string>("");
+  const [recipientInput, setRecipientInput] = useState<string>("");
+  const [recipientList, setRecipientList] = useState<string[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [newId, setNewId] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -220,53 +222,70 @@ const Index = () => {
       </header>
 
       <section className="container mx-auto px-6 py-8 space-y-8">
-        {addOpen && supaEnabled && (
-          <div className="professional-card p-4 border border-gray-200 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">Add Alarm</h2>
-              <Button variant="secondary" onClick={() => setAddOpen(false)}>Close</Button>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="md:col-span-1">
-                <label className="text-sm text-gray-600">ID</label>
-                <input value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="ALM-011" className="w-full border border-gray-300 rounded-md p-2" />
+        {supaEnabled && (
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Alarm</DialogTitle>
+                <DialogDescription>
+                  Create a new alarm with an ID and description.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="md:col-span-1">
+                  <label className="text-sm text-gray-600">ID</label>
+                  <input
+                    value={newId}
+                    onChange={(e) => setNewId(e.target.value)}
+                    placeholder="ALM-011"
+                    className="w-full border border-gray-300 rounded-md p-2"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-600">Description</label>
+                  <input
+                    value={newDesc}
+                    onChange={(e) => setNewDesc(e.target.value)}
+                    placeholder="Description"
+                    className="w-full border border-gray-300 rounded-md p-2"
+                  />
+                </div>
               </div>
-              <div className="md:col-span-2">
-                <label className="text-sm text-gray-600">Description</label>
-                <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description" className="w-full border border-gray-300 rounded-md p-2" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <Button
-                className="btn-blue"
-                disabled={!newId || !newDesc}
-                onClick={async () => {
-                  try {
-                    await createAlarmInDb(newId, newDesc);
-                    const data = await fetchAllAlarms();
-                    setAlarms(data);
-                    setNewId("");
-                    setNewDesc("");
-                    setAddOpen(false);
-                    toast({ title: `Added ${newId}` });
-                  } catch (e: any) {
-                    toast({ title: "Failed", description: String(e?.message ?? e), variant: "destructive" });
-                  }
-                }}
-              >
-                Save
-              </Button>
-            </div>
-          </div>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
+                <Button
+                  className="bg-gray-700 hover:bg-gray-800 text-white"
+                  disabled={!newId || !newDesc}
+                  onClick={async () => {
+                    try {
+                      await createAlarmInDb(newId, newDesc);
+                      const data = await fetchAllAlarms();
+                      setAlarms(data);
+                      setNewId("");
+                      setNewDesc("");
+                      setAddOpen(false);
+                      toast({ title: `Added ${newId}` });
+                    } catch (e: any) {
+                      toast({ title: "Failed", description: String(e?.message ?? e), variant: "destructive" });
+                    }
+                  }}
+                >
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
-        {notifyOpen && (
-          <div className="professional-card p-4 border border-gray-200 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">Send Notification</h2>
-              <Button variant="secondary" onClick={() => setNotifyOpen(false)}>Close</Button>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="md:col-span-1">
+        <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Send Notification</DialogTitle>
+              <DialogDescription>
+                Select an active alarm and add recipient emails below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 md:grid-cols-5">
+              <div className="md:col-span-2">
                 <div className="text-sm text-gray-600 mb-2">Active Alarms</div>
                 <div className="max-h-56 overflow-auto border border-gray-200 rounded-md">
                   {activeAlarms.length === 0 ? (
@@ -276,8 +295,10 @@ const Index = () => {
                       <button
                         key={a.id}
                         onClick={() => setSelectedAlarmId(a.id)}
-                        className={cn("w-full text-left p-2 border-b border-gray-100 hover:bg-gray-50",
-                          selectedAlarmId === a.id && "bg-blue-50")}
+                        className={cn(
+                          "w-full text-left p-2 border-b border-gray-100 hover:bg-gray-50",
+                          selectedAlarmId === a.id && "bg-blue-50 border-blue-200"
+                        )}
                       >
                         <div className="font-semibold">{a.id}</div>
                         <div className="text-xs text-gray-600 truncate">{a.description}</div>
@@ -286,49 +307,92 @@ const Index = () => {
                   )}
                 </div>
               </div>
-              <div className="md:col-span-2">
-                <div className="text-sm text-gray-600 mb-2">Recipients (comma separated)</div>
-                <input
-                  value={recipients}
-                  onChange={(e) => setRecipients(e.target.value)}
-                  placeholder="email1@example.com, email2@example.com"
-                  className="w-full border border-gray-300 rounded-md p-2"
-                />
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    className="btn-blue"
-                    disabled={!selectedAlarmId}
-                    onClick={async () => {
-                      const alarm = alarms.find(a => a.id === selectedAlarmId!);
-                      if (!alarm) return;
-                      const to = recipients.split(',').map(s => s.trim()).filter(Boolean);
-                      const body: any = {
-                        alarmId: alarm.id,
-                        description: alarm.description,
-                        status: alarm.status,
-                        lastStatusChangeTime: alarm.lastStatusChangeTime,
-                      };
-                      if (to.length > 0) body.to = to;
-                      try {
-                        await fetch('/api/send-email', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(body),
-                        });
-                        setNotifyOpen(false);
-                        setRecipients('');
-                        setSelectedAlarmId(null);
-                        toast({ title: `Email sent for ${alarm.id}` });
-                      } catch {}
-                    }}
-                  >
-                    Send Email
-                  </Button>
+              <div className="md:col-span-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-gray-600">Recipients</div>
+                  <div className="text-xs text-gray-500">Press Enter to add</div>
                 </div>
+                <div className="w-full border border-gray-300 rounded-md p-2">
+                  <div className="flex flex-wrap gap-2">
+                    {recipientList.map((email) => (
+                      <span key={email} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-1 text-xs">
+                        {email}
+                        <button
+                          className="hover:text-blue-900"
+                          onClick={() => setRecipientList(list => list.filter(e => e !== email))}
+                          aria-label={`Remove ${email}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={recipientInput}
+                      onChange={(e) => setRecipientInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const trimmed = recipientInput.trim();
+                          const valid = /.+@.+\..+/.test(trimmed);
+                          if (valid && !recipientList.includes(trimmed)) {
+                            setRecipientList((l) => [...l, trimmed]);
+                            setRecipientInput('');
+                          }
+                        }
+                      }}
+                      placeholder="Type email and press Enter"
+                      className="flex-1 min-w-[200px] outline-none text-sm"
+                    />
+                  </div>
+                </div>
+                {recipientInput && !/.+@.+\..+/.test(recipientInput) && (
+                  <div className="text-xs text-red-600 mt-1">Enter a valid email and press Enter</div>
+                )}
               </div>
             </div>
-          </div>
-        )}
+            {selectedAlarmId && (
+              <div className="text-xs text-gray-500 mt-1">
+                Selected: {selectedAlarmId}
+                {(() => {
+                  const a = alarms.find(x => x.id === selectedAlarmId);
+                  return a ? ` — ${a.description}` : '';
+                })()}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setNotifyOpen(false)}>Cancel</Button>
+              <Button
+                className="btn-blue"
+                disabled={!selectedAlarmId || recipientList.length === 0}
+                onClick={async () => {
+                  const alarm = alarms.find(a => a.id === selectedAlarmId!);
+                  if (!alarm) return;
+                  const body: any = {
+                    alarmId: alarm.id,
+                    description: alarm.description,
+                    status: alarm.status,
+                    lastStatusChangeTime: alarm.lastStatusChangeTime,
+                  };
+                  if (recipientList.length > 0) body.to = recipientList;
+                  try {
+                    await fetch('/api/send-email', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(body),
+                    });
+                    setNotifyOpen(false);
+                    setRecipientInput('');
+                    setRecipientList([]);
+                    setSelectedAlarmId(null);
+                    toast({ title: `Email sent for ${alarm.id}` });
+                  } catch {}
+                }}
+              >
+                Send Email
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Tabs defaultValue="monitor" onValueChange={(v) => setActiveTab(v as any)}>
           <div className="flex items-center justify-center mb-8">
             <div className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">

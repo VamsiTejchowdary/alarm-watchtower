@@ -14,15 +14,16 @@ interface Props {
   alarms: Alarm[];
   range: TimeRange;
   onChangeRange?: (r: TimeRange) => void;
-  filterInactive?: boolean; 
+  filterInactive?: boolean;
+  preset?: "lastHour" | "last24h" | "custom" | null;
+  onChangePreset?: (p: "lastHour" | "last24h" | "custom" | null) => void;
 }
 
-export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = false }: Props) {
+export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = false, preset = null, onChangePreset }: Props) {
   const [csvUrl, setCsvUrl] = useState<string | null>(null);
   const supaEnabled = isSupabaseConfigured();
   const [rows, setRows] = useState<Array<{ id: string; totalMs: number; total: string; activations: number }>>([]);
   const [tick, setTick] = useState(0);
-  const [preset, setPreset] = useState<"lastHour" | "last24h" | "custom" | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const isLiveRange = useMemo(() => {
@@ -137,7 +138,12 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
         <CardContent className="p-6 space-y-6">
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
             <div className="text-sm text-gray-600 uppercase tracking-wide mb-3 font-semibold">Time Range Selection</div>
-            <RangePicker range={range} onChange={(r) => onChangeRange?.(r)} onPresetChange={(p) => setPreset(p)} activePreset={preset} />
+            <RangePicker
+              range={range}
+              onChange={(r) => onChangeRange?.(r)}
+              onPresetChange={(p) => onChangePreset?.(p)}
+              activePreset={preset}
+            />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

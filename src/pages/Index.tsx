@@ -11,6 +11,7 @@ import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Bell, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import RotatingIconButton from "@/components/RotatingIconButton";
 
 const Index = () => {
   const supaEnabled = isSupabaseConfigured();
@@ -97,6 +98,7 @@ const Index = () => {
  
   const [range, setRange] = useState<TimeRange>(() => ({ start: new Date(Date.now() - 24 * 3600_000), end: new Date() }));
   const [activeTab, setActiveTab] = useState<"monitor" | "analytics">("monitor");
+  const [analyticsPreset, setAnalyticsPreset] = useState<"lastHour" | "last24h" | "custom" | null>(null);
 
   
   useEffect(() => {
@@ -424,7 +426,13 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="animate-enter">
-            <AnalyticsPanel alarms={alarms} range={range} onChangeRange={(r) => setRange(r)} />
+            <AnalyticsPanel
+              alarms={alarms}
+              range={range}
+              onChangeRange={(r) => setRange(r)}
+              preset={analyticsPreset}
+              onChangePreset={setAnalyticsPreset}
+            />
           </TabsContent>
         </Tabs>
       </section>

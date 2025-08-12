@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon } from "lucide-react";
+import RotatingIconButton from "@/components/RotatingIconButton";
 import { TimeRange } from "@/store/alarms";
 
 interface Props {
@@ -120,6 +121,17 @@ export function RangePicker({ range, onChange, onPresetChange, activePreset }: P
           </div>
         </PopoverContent>
       </Popover>
+
+      <RotatingIconButton
+        title="Reset"
+        className="h-9 w-9"
+        iconClassName="h-4 w-4"
+        onClick={() => {
+          const now = new Date();
+          onChange({ start: subHours(now, 24), end: now });
+          onPresetChange?.(null);
+        }}
+      />
     </div>
   );
 }

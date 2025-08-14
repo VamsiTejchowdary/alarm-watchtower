@@ -153,7 +153,8 @@ const Index = () => {
   };
 
   const [range, setRange] = useState<TimeRange>(() => ({
-    start: new Date(Date.now() - 24 * 3600_000),
+    // Default analytics range to "All time" so Analytics tab shows full history
+    start: new Date(0),
     end: new Date(),
   }));
 

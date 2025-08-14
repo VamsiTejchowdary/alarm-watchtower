@@ -128,7 +128,7 @@ export function RangePicker({ range, onChange, onPresetChange, activePreset }: P
         iconClassName="h-4 w-4"
         onClick={() => {
           const now = new Date();
-          onChange({ start: subHours(now, 24), end: now });
+          onChange({ start: new Date(0), end: now });
           onPresetChange?.(null);
         }}
       />

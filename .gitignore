@@ -25,3 +25,7 @@ dist-ssr
 
 .env
 .vercel
+
+# Ignore interview docs
+Beltways_Interview_Guide.md
+Beltways_Interview_Quick_Reference.md

@@ -61,7 +61,14 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
         if (supaEnabled) {
           const data = await fetchAnalyticsFromDb(effectiveRange);
           if (!cancelled) {
-            setRows(data.map(r => ({ ...r, total: formatDuration(r.totalMs) })));
+            // Ensure all alarms are present even if they have zero activity in the range
+            const byId: Record<string, { totalMs: number; activations: number }> = {};
+            data.forEach(r => { byId[r.id] = { totalMs: r.totalMs, activations: r.activations }; });
+            const merged = alarms.map(a => {
+              const agg = byId[a.id] ?? { totalMs: 0, activations: 0 };
+              return { id: a.id, totalMs: agg.totalMs, total: formatDuration(agg.totalMs), activations: agg.activations };
+            });
+            setRows(merged);
             setHasInitialData(true);
           }
         } else {
@@ -99,7 +106,13 @@ export function AnalyticsPanel({ alarms, range, onChangeRange, filterInactive = 
         if (supaEnabled) {
           const data = await fetchAnalyticsFromDb(effectiveRange);
           if (!cancelled) {
-            setRows(data.map(r => ({ ...r, total: formatDuration(r.totalMs) })));
+            const byId: Record<string, { totalMs: number; activations: number }> = {};
+            data.forEach(r => { byId[r.id] = { totalMs: r.totalMs, activations: r.activations }; });
+            const merged = alarms.map(a => {
+              const agg = byId[a.id] ?? { totalMs: 0, activations: 0 };
+              return { id: a.id, totalMs: agg.totalMs, total: formatDuration(agg.totalMs), activations: agg.activations };
+            });
+            setRows(merged);
           }
         } else {
           const computed = alarms.map((a) => {
